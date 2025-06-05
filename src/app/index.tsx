@@ -218,7 +218,8 @@ const ChatWindow = ({
   theme,
   searchQuery,
   onSearchChange,
-  onOpenSidebar
+  onOpenSidebar,
+  unreadCount = 0
 }: {
   chat: Chat | null;
   messages: Message[];
@@ -229,17 +230,59 @@ const ChatWindow = ({
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onOpenSidebar: () => void;
+  unreadCount?: number;
 }) => {
   const [inputText, setInputText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
+    setShowScrollToBottom(false); // Hide button immediately
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const checkScrollPosition = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 50; // 50px threshold
+    setShowScrollToBottom(!isNearBottom && scrollHeight > clientHeight);
+  };
+
   useEffect(() => {
-    scrollToBottom();
+    // Only auto-scroll if user is near bottom or it's the first message
+    const container = messagesContainerRef.current;
+    if (!container) {
+      scrollToBottom();
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+    
+    if (isNearBottom || messages.length === 1) {
+      scrollToBottom();
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      checkScrollPosition();
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    // Check initial position
+    checkScrollPosition();
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
   }, [messages]);
 
   const filteredMessages = useMemo(() => {
@@ -259,11 +302,11 @@ const ChatWindow = ({
 
   if (!chat) {
     return (
-      <div className={`flex-1 flex flex-col ${
+      <div className={`flex-1 flex flex-col h-full ${
         theme === 'dark' ? 'bg-dark-bg-secondary' : 'bg-gray-50'
       }`}>
         {/* Mobile Header */}
-        <div className={`lg:hidden border-b px-4 py-3 flex items-center ${
+        <div className={`lg:hidden border-b px-4 py-3 flex items-center flex-shrink-0 ${
           theme === 'dark' 
             ? 'bg-dark-bg border-dark-border' 
             : 'bg-white border-gray-200'
@@ -284,7 +327,7 @@ const ChatWindow = ({
         </div>
 
         {/* Welcome Content */}
-        <div className="flex-1 flex items-center justify-center p-4">
+        <div className="flex-1 flex items-center justify-center p-4 min-h-0">
           <div className="text-center max-w-sm">
             <h2 className={`text-xl sm:text-2xl font-semibold mb-2 ${
               theme === 'dark' ? 'text-dark-text-secondary' : 'text-gray-600'
@@ -307,10 +350,10 @@ const ChatWindow = ({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
-      className="flex-1 flex flex-col min-w-0"
+      className="flex-1 flex flex-col min-w-0 h-full"
     >
       {/* Chat Header */}
-      <div className={`border-b px-3 sm:px-4 py-3 flex items-center justify-between ${
+      <div className={`border-b px-3 sm:px-4 py-3 flex items-center justify-between flex-shrink-0 ${
         theme === 'dark' 
           ? 'bg-dark-bg border-dark-border' 
           : 'bg-white border-gray-200'
@@ -372,7 +415,7 @@ const ChatWindow = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.1 }}
-            className={`border-b px-3 sm:px-4 py-3 ${
+            className={`border-b px-3 sm:px-4 py-3 flex-shrink-0 ${
               theme === 'dark' 
                 ? 'bg-dark-bg border-dark-border' 
                 : 'bg-white border-gray-200'
@@ -394,9 +437,12 @@ const ChatWindow = ({
       </AnimatePresence>
 
       {/* Messages */}
-      <div className={`flex-1 overflow-y-auto p-3 sm:p-4 ${
-        theme === 'dark' ? 'bg-dark-bg-secondary' : 'bg-gray-50'
-      }`}>
+      <div 
+        ref={messagesContainerRef}
+        className={`flex-1 overflow-y-auto p-3 sm:p-4 min-h-0 relative ${
+          theme === 'dark' ? 'bg-dark-bg-secondary' : 'bg-gray-50'
+        }`}
+      >
         <AnimatePresence>
           {filteredMessages.map(message => (
             <MessageBubble
@@ -423,10 +469,42 @@ const ChatWindow = ({
           </motion.div>
         )}
         <div ref={messagesEndRef} />
+        
+        {/* Scroll to Bottom Button */}
+        <AnimatePresence>
+          {showScrollToBottom && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="absolute bottom-4 right-4"
+            >
+              <button
+                onClick={scrollToBottom}
+                className={`relative w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-colors ${
+                  theme === 'dark'
+                    ? 'bg-telegram-blue hover:bg-telegram-dark-blue text-white'
+                    : 'bg-telegram-blue hover:bg-telegram-dark-blue text-white'
+                }`}
+                title="Scroll to bottom"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className={`border-t px-3 sm:px-4 py-3 ${
+      <form onSubmit={handleSubmit} className={`border-t px-3 sm:px-4 py-3 flex-shrink-0 ${
         theme === 'dark' 
           ? 'bg-dark-bg border-dark-border' 
           : 'bg-white border-gray-200'
@@ -643,7 +721,7 @@ const AppContent: React.FC = () => {
         toggleTheme={toggleTheme}
       />
       
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full">
         <ChatWindow
           chat={currentChat}
           messages={currentMessages}
@@ -654,6 +732,7 @@ const AppContent: React.FC = () => {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenSidebar={() => setSidebarOpen(true)}
+          unreadCount={currentChat?.unreadCount || 0}
         />
       </div>
     </div>

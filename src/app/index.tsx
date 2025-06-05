@@ -3,27 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Chat, Message } from '../shared/types';
 import { storage } from '../shared/lib/storage';
 import { openaiService } from '../shared/lib/openai';
-
-// Theme hook
-const useTheme = () => {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('telegram-clone-theme');
-    return (saved as 'light' | 'dark') || 'light';
-  });
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('telegram-clone-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  return { theme, toggleTheme };
-};
+import { ThemeProvider, useTheme } from '../shared/lib/theme';
 
 // Icons components
 const SearchIcon = () => (
@@ -50,69 +30,134 @@ const RestartIcon = () => (
   </svg>
 );
 
-const ChatList = ({ chats, activeChat, onChatSelect, theme }: {
+const MenuIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
+const BackIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  </svg>
+);
+
+const ChatList = ({ 
+  chats, 
+  activeChat, 
+  onChatSelect, 
+  theme, 
+  isOpen, 
+  onClose 
+}: {
   chats: Chat[];
   activeChat: string | null;
   onChatSelect: (chatId: string) => void;
   theme: 'light' | 'dark';
+  isOpen: boolean;
+  onClose: () => void;
 }) => (
-  <div className={`w-80 border-r flex flex-col ${
-    theme === 'dark' 
-      ? 'bg-dark-bg border-dark-border' 
-      : 'bg-white border-gray-200'
-  }`}>
-    <div className={`p-4 border-b ${
-      theme === 'dark' ? 'border-dark-border' : 'border-gray-200'
-    }`}>
-      <h1 className={`text-xl font-semibold ${
-        theme === 'dark' ? 'text-dark-text' : 'text-gray-900'
-      }`}>Chats</h1>
-    </div>
-    <div className="flex-1 overflow-y-auto">
-      <AnimatePresence>
-        {chats.map(chat => (
-          <motion.div
-            key={chat.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => onChatSelect(chat.id)}
-            className={`p-4 border-b cursor-pointer transition-colors ${
-              theme === 'dark' 
-                ? `border-dark-border hover:bg-dark-bg-secondary ${
-                    activeChat === chat.id ? 'bg-telegram-blue bg-opacity-20' : ''
-                  }`
-                : `border-gray-100 hover:bg-gray-50 ${
-                    activeChat === chat.id ? 'bg-telegram-blue bg-opacity-10' : ''
-                  }`
-            }`}
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-telegram-blue rounded-full flex items-center justify-center text-white font-semibold">
-                {chat.name.charAt(0)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium truncate ${
-                  theme === 'dark' ? 'text-dark-text' : 'text-gray-900'
-                }`}>{chat.name}</p>
-                {chat.lastMessage && (
-                  <p className={`text-sm truncate ${
-                    theme === 'dark' ? 'text-dark-text-secondary' : 'text-gray-500'
-                  }`}>{chat.lastMessage.text}</p>
+  <>
+    {/* Mobile Overlay */}
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={onClose}
+        />
+      )}
+    </AnimatePresence>
+
+    {/* Chat List */}
+    <motion.div
+      initial={false}
+      animate={{
+        x: window.innerWidth >= 1024 ? 0 : (isOpen ? 0 : '-100%')
+      }}
+      transition={{ type: 'tween', duration: 0.3 }}
+      className={`
+        fixed lg:relative lg:translate-x-0 z-50 lg:z-auto
+        w-80 sm:w-96 lg:w-80 xl:w-96 h-full
+        border-r flex flex-col
+        ${theme === 'dark' 
+          ? 'bg-dark-bg border-dark-border' 
+          : 'bg-white border-gray-200'
+        }
+      `}
+    >
+      <div className={`p-3 sm:p-4 border-b flex items-center justify-between ${
+        theme === 'dark' ? 'border-dark-border' : 'border-gray-200'
+      }`}>
+        <h1 className={`text-lg sm:text-xl font-semibold ${
+          theme === 'dark' ? 'text-dark-text' : 'text-gray-900'
+        }`}>Chats</h1>
+        <button
+          onClick={onClose}
+          className={`lg:hidden p-1 rounded-md ${
+            theme === 'dark' 
+              ? 'hover:bg-dark-bg-tertiary text-dark-text-secondary' 
+              : 'hover:bg-gray-100 text-gray-500'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <AnimatePresence>
+          {chats.map(chat => (
+            <motion.div
+              key={chat.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => {
+                onChatSelect(chat.id);
+                if (window.innerWidth < 1024) {
+                  onClose(); // Only close sidebar on mobile/tablet after selection
+                }
+              }}
+              className={`p-3 sm:p-4 border-b cursor-pointer transition-colors ${
+                theme === 'dark' 
+                  ? `border-dark-border hover:bg-dark-bg-secondary ${
+                      activeChat === chat.id ? 'bg-telegram-blue bg-opacity-20' : ''
+                    }`
+                  : `border-gray-100 hover:bg-gray-50 ${
+                      activeChat === chat.id ? 'bg-telegram-blue bg-opacity-10' : ''
+                    }`
+              }`}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-telegram-blue rounded-full flex items-center justify-center text-white font-semibold text-sm sm:text-base flex-shrink-0">
+                  {chat.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm sm:text-base font-medium truncate ${
+                    theme === 'dark' ? 'text-dark-text' : 'text-gray-900'
+                  }`}>{chat.name}</p>
+                  {chat.lastMessage && (
+                    <p className={`text-xs sm:text-sm truncate ${
+                      theme === 'dark' ? 'text-dark-text-secondary' : 'text-gray-500'
+                    }`}>{chat.lastMessage.text}</p>
+                  )}
+                </div>
+                {chat.unreadCount > 0 && (
+                  <div className="bg-telegram-blue text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center flex-shrink-0">
+                    {chat.unreadCount}
+                  </div>
                 )}
               </div>
-              {chat.unreadCount > 0 && (
-                <div className="bg-telegram-blue text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                  {chat.unreadCount}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </div>
-  </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  </>
 );
 
 const MessageBubble = ({ message, isOwn, theme }: { 
@@ -127,7 +172,7 @@ const MessageBubble = ({ message, isOwn, theme }: {
     className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-3`}
   >
     <div
-      className={`max-w-xs px-4 py-2 rounded-2xl ${
+      className={`max-w-xs sm:max-w-sm md:max-w-md lg:max-w-xs xl:max-w-sm px-3 sm:px-4 py-2 rounded-2xl ${
         isOwn
           ? theme === 'dark'
             ? 'bg-chat-message-out-dark text-white rounded-br-md'
@@ -137,7 +182,7 @@ const MessageBubble = ({ message, isOwn, theme }: {
             : 'bg-white text-gray-900 rounded-bl-md shadow-sm border'
       }`}
     >
-      <p className="text-sm">{message.text}</p>
+      <p className="text-sm sm:text-base leading-relaxed">{message.text}</p>
       <p className={`text-xs mt-1 ${
         isOwn 
           ? theme === 'dark' ? 'text-gray-300' : 'text-blue-100'
@@ -157,7 +202,8 @@ const ChatWindow = ({
   isTyping,
   theme,
   searchQuery,
-  onSearchChange
+  onSearchChange,
+  onOpenSidebar
 }: {
   chat: Chat | null;
   messages: Message[];
@@ -167,6 +213,7 @@ const ChatWindow = ({
   theme: 'light' | 'dark';
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  onOpenSidebar: () => void;
 }) => {
   const [inputText, setInputText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -197,16 +244,42 @@ const ChatWindow = ({
 
   if (!chat) {
     return (
-      <div className={`flex-1 flex items-center justify-center ${
+      <div className={`flex-1 flex flex-col ${
         theme === 'dark' ? 'bg-dark-bg-secondary' : 'bg-gray-50'
       }`}>
-        <div className="text-center">
-          <h2 className={`text-xl font-semibold mb-2 ${
-            theme === 'dark' ? 'text-dark-text-secondary' : 'text-gray-600'
-          }`}>Welcome to Telegram Clone</h2>
-          <p className={theme === 'dark' ? 'text-dark-text-secondary' : 'text-gray-500'}>
-            Select a chat to start messaging
-          </p>
+        {/* Mobile Header */}
+        <div className={`lg:hidden border-b px-4 py-3 flex items-center ${
+          theme === 'dark' 
+            ? 'bg-dark-bg border-dark-border' 
+            : 'bg-white border-gray-200'
+        }`}>
+          <button
+            onClick={onOpenSidebar}
+            className={`p-2 rounded-full mr-2 ${
+              theme === 'dark' 
+                ? 'hover:bg-dark-bg-tertiary text-dark-text' 
+                : 'hover:bg-gray-100 text-gray-700'
+            }`}
+          >
+            <MenuIcon />
+          </button>
+          <h1 className={`text-lg font-semibold ${
+            theme === 'dark' ? 'text-dark-text' : 'text-gray-900'
+          }`}>Chats</h1>
+        </div>
+
+        {/* Welcome Content */}
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center max-w-sm">
+            <h2 className={`text-xl sm:text-2xl font-semibold mb-2 ${
+              theme === 'dark' ? 'text-dark-text-secondary' : 'text-gray-600'
+            }`}>Welcome to Telegram Clone</h2>
+            <p className={`text-sm sm:text-base ${
+              theme === 'dark' ? 'text-dark-text-secondary' : 'text-gray-500'
+            }`}>
+              Select a chat to start messaging
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -219,20 +292,30 @@ const ChatWindow = ({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
-      className="flex-1 flex flex-col"
+      className="flex-1 flex flex-col min-w-0"
     >
       {/* Chat Header */}
-      <div className={`border-b px-4 py-3 flex items-center justify-between ${
+      <div className={`border-b px-3 sm:px-4 py-3 flex items-center justify-between ${
         theme === 'dark' 
           ? 'bg-dark-bg border-dark-border' 
           : 'bg-white border-gray-200'
       }`}>
-        <div className="flex items-center">
-          <div className="w-8 h-8 bg-telegram-blue rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3">
+        <div className="flex items-center min-w-0 flex-1">
+          <button
+            onClick={onOpenSidebar}
+            className={`lg:hidden p-2 rounded-full mr-2 -ml-2 ${
+              theme === 'dark' 
+                ? 'hover:bg-dark-bg-tertiary text-dark-text' 
+                : 'hover:bg-gray-100 text-gray-700'
+            }`}
+          >
+            <MenuIcon />
+          </button>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-telegram-blue rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 flex-shrink-0">
             {chat.name.charAt(0)}
           </div>
-          <div>
-            <h2 className={`font-semibold ${
+          <div className="min-w-0 flex-1">
+            <h2 className={`font-semibold text-sm sm:text-base truncate ${
               theme === 'dark' ? 'text-dark-text' : 'text-gray-900'
             }`}>{chat.name}</h2>
             {chat.participants.some(p => p.isAI) && (
@@ -241,7 +324,7 @@ const ChatWindow = ({
           </div>
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
           <button
             onClick={() => setShowSearch(!showSearch)}
             className={`p-2 rounded-full transition-colors ${
@@ -273,7 +356,7 @@ const ChatWindow = ({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className={`border-b px-4 py-3 ${
+            className={`border-b px-3 sm:px-4 py-3 ${
               theme === 'dark' 
                 ? 'bg-dark-bg border-dark-border' 
                 : 'bg-white border-gray-200'
@@ -284,7 +367,7 @@ const ChatWindow = ({
               placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-telegram-blue ${
+              className={`w-full px-3 py-2 text-sm sm:text-base rounded-lg border focus:outline-none focus:ring-2 focus:ring-telegram-blue ${
                 theme === 'dark'
                   ? 'bg-dark-bg-tertiary border-dark-border text-dark-text'
                   : 'bg-white border-gray-300 text-gray-900'
@@ -295,7 +378,7 @@ const ChatWindow = ({
       </AnimatePresence>
 
       {/* Messages */}
-      <div className={`flex-1 overflow-y-auto p-4 ${
+      <div className={`flex-1 overflow-y-auto p-3 sm:p-4 ${
         theme === 'dark' ? 'bg-dark-bg-secondary' : 'bg-gray-50'
       }`}>
         <AnimatePresence>
@@ -314,7 +397,7 @@ const ChatWindow = ({
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-start mb-3"
           >
-            <div className={`px-4 py-2 rounded-2xl rounded-bl-md text-sm ${
+            <div className={`px-3 sm:px-4 py-2 rounded-2xl rounded-bl-md text-sm ${
               theme === 'dark'
                 ? 'bg-chat-message-in-dark text-dark-text-secondary'
                 : 'bg-white text-gray-500 shadow-sm border'
@@ -327,18 +410,18 @@ const ChatWindow = ({
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className={`border-t px-4 py-3 ${
+      <form onSubmit={handleSubmit} className={`border-t px-3 sm:px-4 py-3 ${
         theme === 'dark' 
           ? 'bg-dark-bg border-dark-border' 
           : 'bg-white border-gray-200'
       }`}>
-        <div className="flex space-x-3">
+        <div className="flex space-x-2 sm:space-x-3">
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Type a message..."
-            className={`flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-telegram-blue focus:border-transparent ${
+            className={`flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base border rounded-full focus:outline-none focus:ring-2 focus:ring-telegram-blue focus:border-transparent ${
               theme === 'dark'
                 ? 'bg-dark-bg-tertiary border-dark-border text-dark-text placeholder-dark-text-secondary'
                 : 'bg-white border-gray-300 text-gray-900'
@@ -347,7 +430,7 @@ const ChatWindow = ({
           <button
             type="submit"
             disabled={!inputText.trim()}
-            className="bg-telegram-blue text-white px-6 py-2 rounded-full hover:bg-telegram-dark-blue focus:outline-none focus:ring-2 focus:ring-telegram-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="bg-telegram-blue text-white px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full hover:bg-telegram-dark-blue focus:outline-none focus:ring-2 focus:ring-telegram-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
           >
             Send
           </button>
@@ -357,13 +440,32 @@ const ChatWindow = ({
   );
 };
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+
+  // Initialize sidebar state based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true); // Always open on desktop
+      } else {
+        setSidebarOpen(false); // Closed by default on mobile/tablet
+      }
+    };
+
+    // Set initial state
+    handleResize();
+    
+    // Listen for resize events
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Initialize data
   useEffect(() => {
@@ -510,11 +612,11 @@ export const App: React.FC = () => {
   const currentMessages = activeChat ? messages[activeChat] || [] : [];
 
   return (
-    <div className={`h-screen flex ${theme === 'dark' ? 'bg-dark-bg text-dark-text' : 'bg-white text-gray-900'}`}>
+    <div className={`h-screen flex overflow-hidden ${theme === 'dark' ? 'bg-dark-bg text-dark-text' : 'bg-white text-gray-900'}`}>
       {/* Theme Toggle */}
       <button
         onClick={toggleTheme}
-        className={`fixed top-4 right-4 z-10 p-2 rounded-full transition-colors ${
+        className={`fixed top-3 right-1 z-50 p-2 sm:p-3 rounded-full transition-colors shadow-lg ${
           theme === 'dark' 
             ? 'bg-dark-bg-tertiary hover:bg-dark-bg-secondary text-dark-text' 
             : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -529,17 +631,35 @@ export const App: React.FC = () => {
         activeChat={activeChat}
         onChatSelect={handleChatSelect}
         theme={theme}
+        isOpen={sidebarOpen}
+        onClose={() => {
+          if (window.innerWidth < 1024) {
+            setSidebarOpen(false);
+          }
+        }}
       />
-      <ChatWindow
-        chat={currentChat}
-        messages={currentMessages}
-        onSendMessage={handleSendMessage}
-        onRestartConversation={handleRestartConversation}
-        isTyping={isTyping}
-        theme={theme}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-      />
+      
+      <div className="flex-1 flex flex-col min-w-0">
+        <ChatWindow
+          chat={currentChat}
+          messages={currentMessages}
+          onSendMessage={handleSendMessage}
+          onRestartConversation={handleRestartConversation}
+          isTyping={isTyping}
+          theme={theme}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onOpenSidebar={() => setSidebarOpen(true)}
+        />
+      </div>
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }; 

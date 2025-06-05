@@ -48,7 +48,8 @@ const ChatList = ({
   onChatSelect, 
   theme, 
   isOpen, 
-  onClose 
+  onClose,
+  toggleTheme
 }: {
   chats: Chat[];
   activeChat: string | null;
@@ -56,6 +57,7 @@ const ChatList = ({
   theme: 'light' | 'dark';
   isOpen: boolean;
   onClose: () => void;
+  toggleTheme: () => void;
 }) => (
   <>
     {/* Mobile Overlay */}
@@ -94,18 +96,31 @@ const ChatList = ({
         <h1 className={`text-lg sm:text-xl font-semibold ${
           theme === 'dark' ? 'text-dark-text' : 'text-gray-900'
         }`}>Chats</h1>
-        <button
-          onClick={onClose}
-          className={`lg:hidden p-1 rounded-md ${
-            theme === 'dark' 
-              ? 'hover:bg-dark-bg-tertiary text-dark-text-secondary' 
-              : 'hover:bg-gray-100 text-gray-500'
-          }`}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-full transition-colors ${
+              theme === 'dark' 
+                ? 'hover:bg-dark-bg-tertiary text-dark-text' 
+                : 'hover:bg-gray-100 text-gray-700'
+            }`}
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+          </button>
+          <button
+            onClick={onClose}
+            className={`lg:hidden p-1 rounded-md ${
+              theme === 'dark' 
+                ? 'hover:bg-dark-bg-tertiary text-dark-text-secondary' 
+                : 'hover:bg-gray-100 text-gray-500'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto">
         <AnimatePresence>
@@ -322,12 +337,20 @@ const ChatWindow = ({
               <p className="text-xs text-telegram-blue">AI Assistant</p>
             )}
           </div>
-        </div>
-        
-        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+          <button
+            onClick={onRestartConversation}
+            className={`p-2 rounded-full transition-colors ml-2 ${
+              theme === 'dark' 
+                ? 'hover:bg-dark-bg-tertiary text-dark-text-secondary' 
+                : 'hover:bg-gray-100 text-gray-500'
+            }`}
+            title="Restart conversation"
+          >
+            <RestartIcon />
+          </button>
           <button
             onClick={() => setShowSearch(!showSearch)}
-            className={`p-2 rounded-full transition-colors ${
+            className={`p-2 rounded-full transition-colors ml-1 ${
               theme === 'dark' 
                 ? 'hover:bg-dark-bg-tertiary text-dark-text-secondary' 
                 : 'hover:bg-gray-100 text-gray-500'
@@ -336,15 +359,19 @@ const ChatWindow = ({
             <SearchIcon />
           </button>
         </div>
+        
+        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+        </div>
       </div>
 
       {/* Search Bar */}
       <AnimatePresence>
         {showSearch && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1 }}
             className={`border-b px-3 sm:px-4 py-3 ${
               theme === 'dark' 
                 ? 'bg-dark-bg border-dark-border' 
@@ -416,18 +443,6 @@ const ChatWindow = ({
                 : 'bg-white border-gray-300 text-gray-900'
             }`}
           />
-          <button
-            onClick={onRestartConversation}
-            type="button"
-            className={`p-2 rounded-full transition-colors border flex-shrink-0 ${
-              theme === 'dark' 
-                ? 'hover:bg-dark-bg-tertiary text-dark-text-secondary border-dark-border' 
-                : 'hover:bg-gray-100 text-gray-500 border-gray-300'
-            }`}
-            title="Restart conversation"
-          >
-            <RestartIcon />
-          </button>
           <button
             type="submit"
             disabled={!inputText.trim()}
@@ -614,19 +629,6 @@ const AppContent: React.FC = () => {
 
   return (
     <div className={`h-screen flex overflow-hidden ${theme === 'dark' ? 'bg-dark-bg text-dark-text' : 'bg-white text-gray-900'}`}>
-      {/* Theme Toggle */}
-      <button
-        onClick={toggleTheme}
-        className={`fixed top-3 right-1 z-50 p-2 sm:p-3 rounded-full transition-colors shadow-lg ${
-          theme === 'dark' 
-            ? 'bg-dark-bg-tertiary hover:bg-dark-bg-secondary text-dark-text' 
-            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-        }`}
-        title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-      >
-        {theme === 'light' ? <MoonIcon /> : <SunIcon />}
-      </button>
-
       <ChatList
         chats={chats}
         activeChat={activeChat}
@@ -638,6 +640,7 @@ const AppContent: React.FC = () => {
             setSidebarOpen(false);
           }
         }}
+        toggleTheme={toggleTheme}
       />
       
       <div className="flex-1 flex flex-col min-w-0">

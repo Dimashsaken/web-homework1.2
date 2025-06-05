@@ -335,17 +335,6 @@ const ChatWindow = ({
           >
             <SearchIcon />
           </button>
-          <button
-            onClick={onRestartConversation}
-            className={`p-2 rounded-full transition-colors ${
-              theme === 'dark' 
-                ? 'hover:bg-dark-bg-tertiary text-dark-text-secondary' 
-                : 'hover:bg-gray-100 text-gray-500'
-            }`}
-            title="Restart conversation"
-          >
-            <RestartIcon />
-          </button>
         </div>
       </div>
 
@@ -427,6 +416,18 @@ const ChatWindow = ({
                 : 'bg-white border-gray-300 text-gray-900'
             }`}
           />
+          <button
+            onClick={onRestartConversation}
+            type="button"
+            className={`p-2 rounded-full transition-colors border flex-shrink-0 ${
+              theme === 'dark' 
+                ? 'hover:bg-dark-bg-tertiary text-dark-text-secondary border-dark-border' 
+                : 'hover:bg-gray-100 text-gray-500 border-gray-300'
+            }`}
+            title="Restart conversation"
+          >
+            <RestartIcon />
+          </button>
           <button
             type="submit"
             disabled={!inputText.trim()}
